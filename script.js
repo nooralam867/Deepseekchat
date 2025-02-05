@@ -1,81 +1,34 @@
-const apiKey = 'sk-205a054430a74656b7de9b9b059efd16'; // Replace with your actual DeepSeek API key
+document.getElementById('chatForm').addEventListener('submit', async function(event) {
+    event.preventDefault();
 
-// Function to send chat messages
-async function sendMessage() {
-    const chatInput = document.getElementById('chatInput');
-    const chatBox = document.getElementById('chatBox');
-    const userMessage = chatInput.value.trim();
+    const textInput = document.getElementById('textInput').value;
+    const imageInput = document.getElementById('imageInput').files;
 
-    if (!userMessage) return;
-
-    // Display user message
-    chatBox.innerHTML += `<div class="message user-message">You: ${userMessage}</div>`;
-    chatInput.value = ''; // Clear input field
-
-    // Call DeepSeek API for response
-    const botResponse = await callDeepSeekAPI(userMessage);
-
-    // Display bot response
-    chatBox.innerHTML += `<div class="message bot-message">Bot: ${botResponse}</div>`;
-    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the latest message
-}
-
-// Function to process uploaded images
-async function processImages() {
-    const fileInput = document.getElementById('fileInput');
-    const files = fileInput.files;
-    const resultsDiv = document.getElementById('imageResults');
-    resultsDiv.innerHTML = 'Processing images...';
-
-    for (let file of files) {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            const imageBase64 = e.target.result.split(',')[1];
-            const result = await callDeepSeekAPIImage(imageBase64);
-            resultsDiv.innerHTML += `<p>${result}</p>`;
-        };
-        reader.readAsDataURL(file);
+    if (!textInput && imageInput.length === 0) {
+        alert('Please enter text or upload images.');
+        return;
     }
-}
 
-// Function to call DeepSeek API for text-based queries
-async function callDeepSeekAPI(text) {
-    const url = 'https://api.deepseek.com/v1/chat/completions'; // Replace with the actual DeepSeek API endpoint
-    const requestBody = {
-        model: "deepseek-chat", // Replace with the correct model name
-        messages: [{ role: "user", content: text }]
-    };
+    const formData = new FormData();
+    formData.append('text', textInput);
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-    });
+    for (let i = 0; i < imageInput.length; i++) {
+        formData.append('images', imageInput[i]);
+    }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
-}
+    try {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer sk-205a054430a74656b7de9b9b059efd16'
+            },
+            body: formData
+        });
 
-// Function to call DeepSeek API for image-based queries
-async function callDeepSeekAPIImage(imageBase64) {
-    const url = 'https://api.deepseek.com/v1/vision/analyze'; // Replace with the actual DeepSeek Vision API endpoint
-    const requestBody = {
-        image: imageBase64,
-        features: ["text_detection"] // Replace with the correct feature for MCQ extraction
-    };
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-    });
-
-    const data = await response.json();
-    return data.results.text; // Adjust based on the API response structure
-}
+        const data = await response.json();
+        document.getElementById('response').innerText = JSON.stringify(data, null, 2);
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('response').innerText = 'An error occurred while processing your request.';
+    }
+});
