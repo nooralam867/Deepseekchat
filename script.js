@@ -1,59 +1,50 @@
-async function getResponse() {
-    const apiKey = "sk-205a054430a74656b7de9b9b059efd16"; // Replace with your actual API key
-    const userInput = document.getElementById("user-input").value;
+const API_KEY = "AIzaSyDLEx9bvCCmyhRuTCl4VijpJMTPTz5UlpA"; // Replace with your Gemini API key
+const API_URL = "https://api.gemini.com/v1/generate"; // Replace with the actual API endpoint
 
-    // Check if input is empty
-    if (!userInput.trim()) {
-        alert("Please enter a message!");
-        return;
+let chatHistory = [];
+
+// Function to send a message
+async function sendMessage(user) {
+  const inputField = document.getElementById(`${user}-input`);
+  const chatHistoryElement = document.getElementById(`${user}-history`);
+  const useAI = document.getElementById(`${user}-ai-toggle`).checked;
+
+  const message = inputField.value.trim();
+
+  if (message) {
+    // Add user message to chat history
+    chatHistory.push({ user, message });
+    chatHistoryElement.innerHTML += `<div><strong>${user}:</strong> ${message}</div>`;
+    inputField.value = "";
+
+    // If AI is enabled, generate a response
+    if (useAI) {
+      const aiResponse = await generateAIResponse();
+      chatHistory.push({ user: "AI", message: aiResponse });
+      chatHistoryElement.innerHTML += `<div><strong>AI:</strong> ${aiResponse}</div>`;
     }
+  }
+}
 
-    const chatBox = document.getElementById("chat-box");
+// Function to generate AI response
+async function generateAIResponse() {
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        prompt: chatHistory.map(entry => `${entry.user}: ${entry.message}`).join("\n"),
+        max_tokens: 50, // Adjust as needed
+      }),
+    });
 
-    // Display user's message
-    chatBox.innerHTML += `<p><strong>You:</strong> ${userInput}</p>`;
-
-    // Clear the input field
-    document.getElementById("user-input").value = "";
-
-    try {
-        console.log("Sending request to API...");
-
-        const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [{ role: "user", content: userInput }]
-            })
-        });
-
-        console.log("API Response Status:", response.status);
-
-        // Check if the response is OK
-        if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("API Response Data:", data);
-
-        // Check if the response contains valid data
-        if (data.choices && data.choices.length > 0) {
-            const botResponse = data.choices[0].message.content;
-            chatBox.innerHTML += `<p><strong>AI:</strong> ${botResponse}</p>`;
-        } else {
-            chatBox.innerHTML += `<p><strong>AI:</strong> No response from the API.</p>`;
-        }
-
-        // Scroll to the bottom of the chat box
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-    } catch (error) {
-        console.error("Error fetching response:", error);
-        chatBox.innerHTML += `<p><strong>AI:</strong> Error getting response. Try again later.</p>`;
-    }
+    const data = await response.json();
+    return data.choices[0].text.trim(); // Adjust based on API response structure
+  } catch (error) {
+    console.error("Error generating AI response:", error);
+    return "Sorry, I couldn't generate a response.";
+  }
 }
